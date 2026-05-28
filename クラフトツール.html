@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>クラフト計算ツール</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 25px;
+            font-size: 24px;
+        }
+        /* タブスタイル */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #ddd;
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+            color: #7f8c8d;
+            white-space: nowrap;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .tab-btn:hover {
+            color: #3498db;
+        }
+        .tab-btn.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* 入力エリア */
+        .form-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 6px;
+        }
+        label {
+            font-weight: bold;
+            color: #34495e;
+        }
+        select, input[type="number"] {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 15px;
+        }
+        select {
+            flex: 1;
+            min-width: 200px;
+        }
+        input[type="number"] {
+            width: 80px;
+        }
+        /* 結果表示エリア */
+        .result-section {
+            margin-top: 20px;
+            border-top: 2px solid #eee;
+            padding-top: 20px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .info-card {
+            background: #f1f2f6;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .info-card .title {
+            font-size: 13px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        .info-card .value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        /* 材料リスト */
+        .materials-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .materials-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        .materials-list li {
+            background: #eef7fe;
+            border-left: 4px solid #3498db;
+            padding: 10px 15px;
+            border-radius: 0 4px 4px 0;
+            display: flex;
+            justify-content: space-between;
+            font-weight: 500;
+        }
+        .no-materials {
+            color: #95a5a6;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>クラフト計算ツール</h1>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('weapon')">武器製造</button>
+        <button class="tab-btn" onclick="switchTab('medical')">手工芸</button>
+        <button class="tab-btn" onclick="switchTab('tools')">犯罪道具</button>
+        <button class="tab-btn" onclick="switchTab('ingot')">溶鉱炉</button>
+        <button class="tab-btn" onclick="switchTab('survival')">ホームレス</button>
+    </div>
+
+    <div class="form-group">
+        <div>
+            <label for="item-select">アイテム: </label>
+            <select id="item-select" onchange="calculate()"></select>
+        </div>
+        <div>
+            <label for="item-count">個数: </label>
+            <input type="number" id="item-count" value="1" min="1" oninput="calculate()">
+        </div>
+    </div>
+
+    <div class="result-section">
+        <div class="info-grid">
+            <div class="info-card">
+                <div class="title">熟練度 (固定)</div>
+                <div class="value" id="res-mastery">-</div>
+            </div>
+            <div class="info-card">
+                <div class="title">必要労働力</div>
+                <div class="value" id="res-labor">-</div>
+            </div>
+            <div class="info-card">
+                <div class="title">合計価格</div>
+                <div class="value" id="res-price">-</div>
+            </div>
+        </div>
+
+        <div class="materials-title">必要材料</div>
+        <ul id="materials-list" class="materials-list">
+            </ul>
+    </div>
+</div>
+
+<script>
+// 画像データを完全に再現したレシピデータベース
+const craftData = {
+    weapon: [
+        { name: ".45ACP", mastery: "1,000", labor: 50, price: 3000, mats: { "メタルスクラップ": 5, "スチール": 2, "銅板": 5, "火薬": 20 } },
+        { name: "5.56×45", mastery: "1,000", labor: 50, price: 3000, mats: { "メタルスクラップ": 5, "スチール": 2, "銅板": 5, "火薬": 20 } },
+        { name: "7.62×39", mastery: "1,000", labor: 50, price: 3000, mats: { "メタルスクラップ": 5, "スチール": 2, "銅板": 5, "火薬": 20 } },
+        { name: "9mm", mastery: "1,000", labor: 50, price: 3000, mats: { "メタルスクラップ": 5, "スチール": 2, "銅板": 5, "火薬": 20 } },
+        { name: "Assault Rifle", mastery: "1,000", labor: 500, price: 500000, mats: { "ゴム": 10, "鉄板": 30, "アルミニウム": 30, "メタルスクラップ": 40 } },
+        { name: "Bat", mastery: "0", labor: 50, price: 10000, mats: { "ゴム": 5, "鉄板": 10 } },
+        { name: "Grenade", mastery: "5,000", labor: 50, price: 50000, mats: { "メタルスクラップ": 5, "スチール": 2, "銅板": 5, "火薬": 20 } },
+        { name: "Heavy Pistol", mastery: "1,000", labor: 250, price: 20000, mats: { "鉄板": 10, "アルミニウム": 10, "メタルスクラップ": 20, "スチール": 10 } },
+        { name: "Knife", mastery: "0", labor: 50, price: 10000, mats: { "ゴム": 5, "鉄板": 10 } },
+        { name: "Mini SMG", mastery: "5,000", labor: 300, price: 200000, mats: { "鉄板": 40, "アルミニウム": 20, "メタルスクラップ": 20, "スチール": 10 } },
+        { name: "Pistol", mastery: "0", labor: 250, price: 20000, mats: { "鉄板": 5, "アルミニウム": 10, "メタルスクラップ": 15 } },
+        { name: "Pistol MK2", mastery: "1,000", labor: 250, price: 20000, mats: { "ゴム": 5, "鉄板": 5, "アルミニウム": 10, "メタルスクラップ": 20 } },
+        { name: "Suppressor", mastery: "5,000", labor: 100, price: 20000, mats: { "メタルスクラップ": 20, "布切れ": 20, "カーボン": 20 } },
+        { name: "Tactical Suppressor", mastery: "5,000", labor: 100, price: 20000, mats: { "メタルスクラップ": 30, "布切れ": 30, "カーボン": 30 } },
+        { name: "火薬①", mastery: "1,000", labor: 50, price: 10000, mats: { "木炭": 1, "液体硫黄": 1, "硝石粉末": 3 } },
+        { name: "火薬②", mastery: "1,000", labor: 50, price: 10000, mats: { "カーボン": 1, "液体硫黄": 1, "硝石粉末": 3 } }
+    ],
+    medical: [
+        { name: "Bandage", mastery: "500", labor: 10, price: 1000, mats: { "布切れ": 5, "エタノール": 5 } },
+        { name: "ガラス細工①", mastery: "0", labor: 10, price: 0, mats: { "ガラス": 10 } },
+        { name: "ガラス細工②", mastery: "100", labor: 10, price: 0, mats: { "ガラス": 10 } },
+        { name: "折り紙①", mastery: "0", labor: 10, price: 0, mats: { "紙": 10 } },
+        { name: "折り紙②", mastery: "100", labor: 10, price: 0, mats: { "紙": 10 } },
+        { name: "電子キット", mastery: "1,000", labor: 50, price: 10000, mats: { "鉄板": 1, "銅板": 1, "電子部品": 1 } },
+        { name: "電子部品①", mastery: "500", labor: 25, price: 5000, mats: { "壊れたスマホ": 10 } },
+        { name: "電子部品②", mastery: "500", labor: 25, price: 5000, mats: { "クリプトスティック": 1 } }
+    ],
+    tools: [
+        { name: "Armor", mastery: "1,000", labor: 100, price: 400000, mats: { "ゴム": 15, "メタルスクラップ": 15, "スチール": 15, "布切れ": 15, "カーボンファイバー": 15 } },
+        { name: "Handcuffs", mastery: "0", labor: 50, price: 200000, mats: { "ゴム": 10, "鉄板": 10, "スチール": 10 } },
+        { name: "アングルグラインダー", mastery: "1,000", labor: 50, price: 20000, mats: { "鉄板": 20, "メタルスクラップ": 20, "スチール": 10 } },
+        { name: "ガスマスク", mastery: "1,000", labor: 50, price: 50000, mats: { "ゴム": 15, "グラスファイバー": 5, "布切れ": 10 } },
+        { name: "ガラスカッター", mastery: "1,000", labor: 50, price: 50000, mats: { "メタルスクラップ": 10, "スチール": 10 } },
+        { name: "ナイロンロープ", mastery: "0", labor: 50, price: 5000, mats: { "グラスファイバー": 10 } },
+        { name: "ハッキングUSB v1.0", mastery: "500", labor: 50, price: 10000, mats: { "クリプトスティック": 1 } },
+        { name: "ハッキングUSB v2.0", mastery: "1,000", labor: 50, price: 100000, mats: { "クリプトスティック": 10 } },
+        { name: "ハッキングラップトップ v1.0", mastery: "0", labor: 50, price: 20000, mats: { "鉄板": 3, "メタルスクラップ": 3, "電子キット": 1 } },
+        { name: "ハッキングラップトップ v2.0", mastery: "1,000", labor: 50, price: 200000, mats: { "メタルスクラップ": 10, "スチール": 10, "電子キット": 5 } },
+        { name: "違法ハックフォン", mastery: "0", labor: 50, price: 20000, mats: { "鉄板": 3, "メタルスクラップ": 3, "壊れたスマホ": 10 } },
+        { name: "金庫破り", mastery: "1,000", labor: 50, price: 150000, mats: { "鉄板": 10, "メタルスクラップ": 15, "電子キット": 5, "クリプトスティック": 2 } },
+        { name: "金庫破りキット", mastery: "1,000", labor: 50, price: 250000, mats: { "メタルスクラップ": 20, "スチール": 20, "電子キット": 3 } },
+        { name: "犯罪バッグ", mastery: "500", labor: 50, price: 10000, mats: { "ゴム": 5, "布切れ": 10 } },
+        { name: "犯罪用インパクトドリル", mastery: "1,000", labor: 50, price: 300000, mats: { "ゴム": 40, "メタルスクラップ": 40, "スチール": 40 } },
+        { name: "犯罪用ドリル", mastery: "500", labor: 50, price: 10000, mats: { "ゴム": 10, "メタルスクラップ": 10, "スチール": 10 } },
+        { name: "犯罪用バール", mastery: "1,000", labor: 50, price: 10000, mats: { "ゴム": 5, "スチール": 10 } },
+        { name: "犯罪用高性能ドリル", mastery: "1,000", labor: 50, price: 200000, mats: { "ゴム": 30, "メタルスクラップ": 30, "スチール": 30 } }
+    ],
+    ingot: [
+        { name: "アルミニウム①", mastery: "0", labor: 0, price: 0, mats: { "空き缶": 2 } },
+        { name: "アルミニウム②", mastery: "0", labor: 0, price: 0, mats: { "アルミニウム粉": 3 } },
+        { name: "ガラス", mastery: "0", labor: 0, price: 0, mats: { "空きビン": 2 } },
+        { name: "ゴールドインゴット①", mastery: "0", labor: 0, price: 0, mats: { "金鉱石": 1 } },
+        { name: "ゴールドインゴット②", mastery: "0", labor: 0, price: 0, mats: { "壊れたスマホ": 50 } },
+        { name: "シルバーインゴット①", mastery: "0", labor: 0, price: 0, mats: { "銀鉱石": 1 } },
+        { name: "シルバーインゴット②", mastery: "0", labor: 0, price: 0, mats: { "壊れたスマホ": 20 } },
+        { name: "スチール①", mastery: "0", labor: 0, price: 0, mats: { "鉄板": 2 } },
+        { name: "スチール②", mastery: "0", labor: 0, price: 0, mats: { "カーボン": 1, "銀鉱石": 1 } },
+        { name: "メタルスクラップ", mastery: "0", labor: 0, price: 0, mats: { "アルミニウム": 10, "ガラス": 20, "銅板": 10 } },
+        { name: "鉄板①", mastery: "0", labor: 0, price: 0, mats: { "銀鉱石": 1 } },
+        { name: "鉄板②", mastery: "0", labor: 0, price: 0, mats: { "鉄粉": 3 } },
+        { name: "銅板", mastery: "0", labor: 0, price: 0, mats: { "銅鉱石": 1 } }
+    ],
+    survival: [
+        { name: "サバイバル残飯", mastery: "0", labor: 50, price: 0, mats: { "皿に盛られた残飯": 5, "袋詰された残飯": 5 } },
+        { name: "濾過水", mastery: "0", labor: 50, price: 0, mats: { "飲み残しのペットボトル": 5, "布切れ": 5 } },
+        { name: "リサイクルたばこ", mastery: "0", labor: 50, price: 0, mats: { "シケモク": 10 } },
+        { name: "リサイクル絆創膏", mastery: "0", labor: 50, price: 0, mats: { "布切れ": 5 } }
+    ]
+};
+
+let currentTab = 'weapon';
+
+// タブ切り替え関数
+function switchTab(tabId) {
+    currentTab = tabId;
+    
+    // タブボタンのアクティブ状態を変更
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    // プルダウンの選択肢を更新
+    const select = document.getElementById('item-select');
+    select.innerHTML = '';
+    
+    craftData[tabId].forEach((item, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = item.name;
+        select.appendChild(option);
+    });
+
+    // 個数を1にリセットして再計算
+    document.getElementById('item-count').value = 1;
+    calculate();
+}
+
+// 計算処理関数
+function calculate() {
+    const select = document.getElementById('item-select');
+    const countInput = document.getElementById('item-count');
+    
+    if (!select.value) return;
+
+    const selectedIdx = parseInt(select.value);
+    const count = Math.max(1, parseInt(countInput.value) || 1);
+    countInput.value = count; // 不正な入力（マイナス等）を防ぐ
+
+    const item = craftData[currentTab][selectedIdx];
+
+    // 固定値の適用
+    document.getElementById('res-mastery').textContent = item.mastery;
+
+    // 個数に応じた計算
+    const totalLabor = item.labor * count;
+    const totalPrice = item.price * count;
+
+    document.getElementById('res-labor').textContent = totalLabor.toLocaleString();
+    document.getElementById('res-price').textContent = "¥" + totalPrice.toLocaleString();
+
+    // 材料リストの更新
+    const matsList = document.getElementById('materials-list');
+    matsList.innerHTML = '';
+
+    const matKeys = Object.keys(item.mats);
+    if (matKeys.length === 0) {
+        matsList.innerHTML = '<li class="no-materials">必要材料はありません</li>';
+    } else {
+        matKeys.forEach(matName => {
+            const requiredAmount = item.mats[matName] * count;
+            const li = document.createElement('li');
+            li.innerHTML = `<span>${matName}</span> <span>${requiredAmount.toLocaleString()} 個</span>`;
+            matsList.appendChild(li);
+        });
+    }
+}
+
+// 初期化（最初のタブを読み込む）
+window.onload = function() {
+    // 擬似的に最初のタブボタンをクリック
+    document.querySelector('.tab-btn').click();
+};
+</script>
+
+</body>
+</html>

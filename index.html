@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aurora Town Tool</title>
+    <style>
+        /* 全体の背景とフォント設定 */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Helvetica Neue', Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* おしゃれなグラデーション */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+        }
+
+        p {
+            margin-bottom: 2.5rem;
+            opacity: 0.9;
+        }
+
+        /* ボタンが並ぶコンテナ */
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            width: 90%;
+            max-width: 800px;
+        }
+
+        /* ボタンの基本デザイン */
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #553c9a;
+            background: white;
+            text-decoration: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        /* マウスホバー時の動き */
+        .btn:hover {
+            transform: translateY(-5px);
+            background: #f0f0f0;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+            border: 2px solid #fff;
+        }
+
+        /* 各ボタンの色味を変えるアクセント */
+        .main-tool {
+            background: #ffed4a; /* クラフトツールは目立つ黄色 */
+            color: #333;
+        }
+
+        .sub-tool {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Helios City Tool</h1>
+    <p>利用したいツールを選択してください</p>
+
+    <div class="container">
+        <a href="クラフトツール.html" class="btn main-tool">🛠クラフトツール</a>
+
+        <a href="https://docs.google.com/spreadsheets/d/1U4MxNfbpBmSB4Ku25JehAwdjWaCvbU_ifuAxWo2WX3g/edit?usp=sharing" class="btn main-tool">🛠クラフトスプシ</a>
+
+        <a href="#" class="btn sub-tool">⚙ 予備①</a>
+
+        <a href="#" class="btn sub-tool">⚙ 予備②</a>
+    </div>
+
+</body>
+</html>
+
+
+
+
+
