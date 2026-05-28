@@ -12,14 +12,35 @@
             margin: 0;
             padding: 20px;
         }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 25px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+	/* ★ 左上固定のリンクボタン設定 ★ */
+        .fixed-link-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 9999;
+            display: inline-block;
+            padding: 10px 18px;
+            background-color: #2c3e50;
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            transition: background-color 0.2s;
         }
+        .fixed-link-btn:hover {
+            background-color: #34495e;
+        }
+        .container {
+	    width: 800px;        /* max-width から width（固定）に変更 */
+	    margin: 20px auto;   /* 上下に余白、左右は自動で中央寄せ */
+	    background: #fff;
+	    padding: 25px;
+	    border-radius: 8px;
+	    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+	    box-sizing: border-box; /* パディングを含めて800pxにする設定 */
+	}
         h1 {
             text-align: center;
             color: #2c3e50;
@@ -27,12 +48,12 @@
             font-size: 24px;
         }
         /* タブスタイル */
-        .tabs {
-            display: flex;
-            border-bottom: 2px solid #ddd;
-            margin-bottom: 20px;
-            overflow-x: auto;
-        }
+	.tabs {
+	    display: flex;
+	    border-bottom: 2px solid #ddd;
+	    margin-bottom: 20px;
+	    width: 100%;        /* コンテナの幅（800px）に合わせる */
+	}
         .tab-btn {
             padding: 10px 20px;
             border: none;
@@ -146,6 +167,8 @@
 </head>
 <body>
 
+<a href="https://rapid-kz.github.io/HeliosCity/" class="fixed-link-btn">◀ ツール一覧へ戻る</a>
+
 <div class="container">
     <h1>クラフト計算ツール</h1>
 
@@ -189,6 +212,10 @@
             </ul>
     </div>
 </div>
+
+<footer style="position: fixed; top: 4px; left: 60px; padding: 30px; font-size: 0.75rem; color: #aaa;">
+    <a href="https://rapid-kz.github.io/HeliosCity/" style="color: inherit; text-decoration: none;">TOPページ</a>
+</footer>
 
 <script>
 // 画像データを完全に再現したレシピデータベース
