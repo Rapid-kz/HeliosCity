@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>薬物精製・重量確認ツール</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+            background-color: #f0f4f8;
+            color: #1e293b;
+            margin: 0;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        h1 {
+            text-align: center;
+            color: #0f172a;
+            font-size: 1.6rem;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 15px;
+        }
+        /* コントロールエリア */
+        .control-panel {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            background-color: #f8fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border: 1px solid #e2e8f0;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .control-group label {
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #64748b;
+        }
+        select, input[type="number"] {
+            padding: 10px 14px;
+            font-size: 1rem;
+            border: 2px solid #cbd5e1;
+            border-radius: 6px;
+            background-color: #fff;
+            color: #0f172a;
+            font-weight: bold;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        select:focus, input[type="number"]:focus {
+            border-color: #3b82f6;
+        }
+        select {
+            min-width: 180px;
+            cursor: pointer;
+        }
+        input[type="number"] {
+            width: 100px;
+            text-align: center;
+        }
+        /* テーブル */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #cbd5e1;
+            padding: 14px 16px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        th {
+            background-color: #1e293b;
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+        .material-name {
+            font-weight: bold;
+            color: #0f172a;
+        }
+        .qty-cell {
+            font-weight: bold;
+            color: #1e293b;
+            font-size: 1.05rem;
+        }
+        .weight-cell {
+            font-weight: bold;
+            color: #334155;
+            font-size: 1.05rem;
+        }
+        .unit {
+            font-size: 0.85rem;
+            color: #64748b;
+            font-weight: normal;
+            margin-left: 2px;
+        }
+        /* 総重量の表示エリア（新機能） */
+        .summary-panel {
+            margin-top: 25px;
+            background-color: #eff6ff;
+            border: 2px solid #bfdbfe;
+            padding: 15px 25px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .summary-label {
+            font-weight: bold;
+            color: #1e40af;
+            font-size: 1.1rem;
+        }
+        .summary-value {
+            font-size: 1.7rem;
+            font-weight: bold;
+            color: #1d4ed8;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>薬物精製・重量確認ツール</h1>
+    
+    <div class="control-panel">
+        <div class="control-group">
+            <label for="potion-select">作成する薬を選択</label>
+            <select id="potion-select" onchange="calculate()">
+                <option value="glacier">グレイシャー</option>
+                <option value="solaris">ソラリス</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="craft-count">作成個数</label>
+            <input type="number" id="craft-count" value="1" min="0" oninput="calculate()">
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 30%;">使用素材 (1列目)</th>
+                <th style="width: 25%;">使用素材の重さ (2列目)</th>
+                <th style="width: 22%;">必要数</th>
+                <th style="width: 23%;">素材別 総重量</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="material-row" data-weight="0.2" data-glacier="11" data-solaris="8">
+                <td class="material-name">フラワー</td>
+                <td>0.2<span class="unit">kg</span></td>
+                <td class="qty-cell">-</td>
+                <td class="weight-cell">-</td>
+            </tr>
+            <tr class="material-row" data-weight="0.5" data-glacier="9" data-solaris="0">
+                <td class="material-name">塩酸</td>
+                <td>0.5<span class="unit">kg</span></td>
+                <td class="qty-cell">-</td>
+                <td class="weight-cell">-</td>
+            </tr>
+            <tr class="material-row" data-weight="0.5" data-glacier="0" data-solaris="10">
+                <td class="material-name">液体硫黄</td>
+                <td>0.5<span class="unit">kg</span></td>
+                <td class="qty-cell">-</td>
+                <td class="weight-cell">-</td>
+            </tr>
+            <tr class="material-row" data-weight="0.5" data-glacier="14" data-solaris="12">
+                <td class="material-name">工業廃水</td>
+                <td>0.5<span class="unit">kg</span></td>
+                <td class="qty-cell">-</td>
+                <td class="weight-cell">-</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="summary-panel">
+        <span class="summary-label">📦 バックパックに必要な総重量（合計）</span>
+        <span class="summary-value" id="grand-total-weight">0.0<span class="unit" style="font-size: 1.1rem; color: #1d4ed8;">kg</span></span>
+    </div>
+</div>
+
+<script>
+    function calculate() {
+        // プルダウンの選択値と作成個数を取得
+        const selectedPotion = document.getElementById('potion-select').value;
+        
+        let count = parseInt(document.getElementById('craft-count').value);
+        if (isNaN(count) || count < 0) count = 0;
+
+        // 全素材の合計重量を保持する変数
+        let grandTotalWeight = 0;
+
+        // 全ての素材行をループ処理
+        const rows = document.querySelectorAll('.material-row');
+        
+        rows.forEach(row => {
+            // 素材の単体重量と、選択された薬のベース必要数を取得
+            const weight = parseFloat(row.getAttribute('data-weight'));
+            const baseQty = parseInt(row.getAttribute(`data-${selectedPotion}`));
+
+            // 必要数が0個（使わない素材）なら行ごと非表示にする
+            if (baseQty === 0) {
+                row.style.display = 'none';
+            } else {
+                // 使う素材であれば表示して計算
+                row.style.display = 'table-row';
+                
+                const totalQty = baseQty * count;
+                const totalWeight = totalQty * weight;
+
+                // 全体の総重量に加算
+                grandTotalWeight += totalWeight;
+
+                // 各セルに結果を代入
+                row.querySelector('.qty-cell').innerHTML = `${totalQty}<span class="unit">個</span>`;
+                row.querySelector('.weight-cell').innerHTML = `${totalWeight.toFixed(1)}<span class="unit">kg</span>`;
+            }
+        });
+
+        // 総合計重量を別枠のエリアに反映
+        document.getElementById('grand-total-weight').innerHTML = `${grandTotalWeight.toFixed(1)}<span class="unit" style="font-size: 1.1rem; color: #1d4ed8;">kg</span>`;
+    }
+
+    // 初回読み込み時に計算を実行
+    window.onload = calculate;
+</script>
+
+</body>
+</html>
