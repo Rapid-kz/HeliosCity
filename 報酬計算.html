@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>FiveM 報酬分配計算ツール</title>
+    <style>
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #1e1e24; color: #e0e0e0; margin: 20px; line-height: 1.6; }
+        h1, h2 { color: #fff; border-bottom: 2px solid #ff4757; padding-bottom: 10px; }
+        .container { max-width: 950px; margin: 0 auto; background: #2f2f38; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .section { margin-bottom: 25px; padding: 15px; background: #25252d; border-radius: 6px; }
+        label { display: inline-block; margin-bottom: 5px; font-weight: bold; color: #ffa502; }
+        input, select, textarea { background: #3a3a45; color: #fff; border: 1px solid #555; padding: 8px; border-radius: 4px; box-sizing: border-box; width: 100%; margin-bottom: 10px; }
+        input[type="number"] { -moz-appearance: textfield; }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #444; padding: 10px; text-align: center; }
+        th { background-color: #ff4757; color: white; }
+        tr:nth-child(even) { background-color: #2a2a35; }
+        .total-box { background: #ff4757; color: white; padding: 15px; font-size: 1.2rem; font-weight: bold; border-radius: 6px; text-align: center; margin-top: 10px; }
+        .btn { background: #2ed573; color: white; border: none; padding: 10px 20px; font-size: 1rem; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+        .btn:hover { background: #26af5f; }
+        textarea { font-family: monospace; height: 180px; resize: vertical; }
+        .radio-group { display: flex; justify-content: center; gap: 10px; align-items: center; }
+        .radio-group label { color: #fff; margin: 0; cursor: pointer; font-weight: normal; }
+        .radio-group input[type="radio"] { width: auto; margin: 0; cursor: pointer; }
+        .disabled-cell { color: #777; font-style: italic; background-color: #1e1e24; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>FiveM 報酬分配計算ツール</h1>
+
+    <div class="section">
+        <h2>1. 犯罪の選択</h2>
+        <div>
+            <label>犯罪名</label>
+            <select id="crime-select" onchange="calculateAll()">
+                </select>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>2. 全体報酬額入力</h2>
+        <div class="grid-2">
+            <div>
+                <label>現金 (100%換算)</label>
+                <input type="number" id="cash" value="0" oninput="calculateAll()">
+            </div>
+            <div>
+                <label>ダーティーマネー（額面）</label>
+                <input type="number" id="dirty" value="0" oninput="calculateAll()">
+            </div>
+        </div>
+        <div class="grid-2">
+            <div>
+                <label>ダーティーマネー換金率 (%)</label>
+                <input type="number" id="dirty-rate" value="100" oninput="calculateAll()">
+            </div>
+            <div>
+                <label>総報酬額（計算後合計）</label>
+                <div id="total-reward-display" class="total-box">¥0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>3. 参加者設定</h2>
+        <div class="grid-2">
+            <div>
+                <label>参加人数</label>
+                <select id="member-count" onchange="renderMemberTable()"></select>
+            </div>
+        </div>
+        
+        <h3>メンバー別詳細入力</h3>
+        <table id="member-table">
+            <thead>
+                <tr>
+                    <th style="width: 20%;">名前</th>
+                    <th style="width: 20%;">罰金有無</th>
+                    <th style="width: 15%;">追加罰金</th>
+                    <th style="width: 15%;">追加蘇生代</th>
+                    <th style="width: 15%;">その他（自由入力）</th>
+                    <th style="width: 15%;">最終支給額</th>
+                </tr>
+            </thead>
+            <tbody id="member-tbody">
+                </tbody>
+        </table>
+        
+        <button class="btn" onclick="calculateAll()">計算を実行してコピペ欄を更新</button>
+    </div>
+
+    <div class="section">
+        <h2>4. Discord用コピペ欄</h2>
+        <textarea id="copy-paste-area" readonly onclick="this.select()"></textarea>
+        <p style="font-size: 0.85rem; color: #aaa; margin-top: 5px;">※クリックすると全選択されます。そのままコピーしてDiscord等に貼り付けてください。</p>
+    </div>
+</div>
+
+<script>
+// --- 設定用データ ---
+const crimeList = {};
+for(let i = 1; i <= 21; i++) {
+    crimeList[`犯罪名サンプル ${i}`] = 1000000; 
+}
+
+const nameList = ["選択してください", "プレイヤーA", "プレイヤーB", "プレイヤーC", "プレイヤーD", "プレイヤーE", "プレイヤーF", "プレイヤーG", "プレイヤーH", "プレイヤーI", "プレイヤーJ", "プレイヤーK", "プレイヤーL", "プレイヤーM", "プレイヤーN", "プレイヤーO"];
+
+window.onload = function() {
+    initCrimeSelect();
+    initMemberCountSelect();
+    renderMemberTable();
+};
+
+function initCrimeSelect() {
+    const select = document.getElementById('crime-select');
+    let options = `<option value="">-- 犯罪名を選択 --</option>`;
+    for (const crime in crimeList) {
+        options += `<option value="${crime}">${crime} (¥${crimeList[crime].toLocaleString()})</option>`;
+    }
+    select.innerHTML = options;
+}
+
+function initMemberCountSelect() {
+    const select = document.getElementById('member-count');
+    for (let i = 4; i <= 15; i++) {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = `${i} 人`;
+        select.appendChild(opt);
+    }
+}
+
+function renderMemberTable() {
+    const count = parseInt(document.getElementById('member-count').value);
+    const tbody = document.getElementById('member-tbody');
+    tbody.innerHTML = '';
+
+    let nameOptions = '';
+    nameList.forEach(name => {
+        nameOptions += `<option value="${name}">${name}</option>`;
+    });
+
+    for (let i = 1; i <= count; i++) {
+        createRow(tbody, `member-name-${i}`, false, nameOptions, i);
+    }
+    createRow(tbody, `member-name-pool`, true, nameOptions, 0);
+
+    calculateAll();
+}
+
+function createRow(tbody, idPrefix, isPool, nameOptions, index) {
+    const tr = document.createElement('tr');
+    
+    if (isPool) {
+        tr.innerHTML = `
+            <td><strong>ギャングプール</strong></td>
+            <td class="disabled-cell">-</td>
+            <td class="disabled-cell">-</td>
+            <td class="disabled-cell">-</td>
+            <td class="disabled-cell">-</td>
+            <td><span id="${idPrefix}-final" style="font-weight:bold; color:#ff4757;">¥0</span></td>
+        `;
+    } else {
+        let syoseiOptions = `<option value="0">¥0</option>`;
+        for(let m = 1; m <= 5; m++) {
+            syoseiOptions += `<option value="${m * 1000000}">¥${m},000,000</option>`;
+        }
+
+        const radioGroup = `
+            <div class="radio-group">
+                <input type="radio" id="${idPrefix}-fine-on" name="fine-status-${index}" value="on" checked onchange="calculateAll()">
+                <label for="${idPrefix}-fine-on">有</label>
+                <input type="radio" id="${idPrefix}-fine-off" name="fine-status-${index}" value="off" onchange="calculateAll()">
+                <label for="${idPrefix}-fine-off">無</label>
+            </div>
+        `;
+
+        tr.innerHTML = `
+            <td><select id="${idPrefix}">${nameOptions}</select></td>
+            <td>${radioGroup}</td>
+            <td><span id="${idPrefix}-fine-val">¥0</span></td>
+            <td><select id="${idPrefix}-revive" onchange="calculateAll()">${syoseiOptions}</select></td>
+            <td><input type="number" id="${idPrefix}-other" value="0" oninput="calculateAll()" style="margin:0;"></td>
+            <td><span id="${idPrefix}-final" style="font-weight:bold; color:#2ed573;">¥0</span></td>
+        `;
+    }
+    tbody.appendChild(tr);
+}
+
+function calculateAll() {
+    let baseFineAmount = 0;
+    let selectedCrimeName = "";
+    const crimeSelect = document.getElementById('crime-select');
+    if (crimeSelect && crimeSelect.value) {
+        selectedCrimeName = crimeSelect.value;
+        baseFineAmount = crimeList[selectedCrimeName];
+    }
+
+    const cash = parseFloat(document.getElementById('cash').value) || 0;
+    const dirty = parseFloat(document.getElementById('dirty').value) || 0;
+    const dirtyRate = parseFloat(document.getElementById('dirty-rate').value) || 0;
+    
+    const calculatedDirty = dirty * (dirtyRate / 100);
+    const rawTotalReward = cash + calculatedDirty; // 純粋な総報酬額
+    
+    // 1万円未満の端数を計算
+    const poolFraction = rawTotalReward % 10000; 
+    // 端数を引いた金額
+    const roundedTotalReward = rawTotalReward - poolFraction;
+
+    const count = parseInt(document.getElementById('member-count').value);
+    const divisor = count + 1; 
+    
+    // 総報酬をベースとした純粋な頭割り金額
+    const baseSplit = roundedTotalReward / divisor;
+
+    document.getElementById('total-reward-display').textContent = `¥${Math.floor(rawTotalReward).toLocaleString()}`;
+
+    let textOutputs = [];
+
+    // メンバー個人の計算
+    for (let i = 1; i <= count; i++) {
+        const idPrefix = `member-name-${i}`;
+        
+        let name = `メンバー ${i}`;
+        const nameSel = document.getElementById(idPrefix);
+        if(nameSel && nameSel.value !== "選択してください") name = nameSel.value;
+
+        const fineRadioOn = document.getElementById(`${idPrefix}-fine-on`);
+        const hasFine = fineRadioOn ? fineRadioOn.checked : true;
+        const currentFine = hasFine ? baseFineAmount : 0;
+
+        const revive = parseFloat(document.getElementById(`${idPrefix}-revive`).value) || 0;
+        const other = parseFloat(document.getElementById(`${idPrefix}-other`).value) || 0;
+        
+        // 個人最終支給額 ＝ 基礎分配 ＋ 罰金 ＋ 蘇生代 ＋ その他
+        const finalAmount = baseSplit + currentFine + revive + other;
+
+        document.getElementById(`${idPrefix}-fine-val`).textContent = `¥${currentFine.toLocaleString()}`;
+        document.getElementById(`${idPrefix}-final`).textContent = `¥${Math.floor(finalAmount).toLocaleString()}`;
+
+        textOutputs.push(`【${name}】\n ┗ 基礎分配: ¥${Math.floor(baseSplit).toLocaleString()}\n ┗ 追加罰金: +¥${currentFine.toLocaleString()}\n ┗ 追加蘇生代: +¥${revive.toLocaleString()}\n ┗ その他追加: +¥${other.toLocaleString()}\n ┗ ＝ 最終支給額: ¥${Math.floor(finalAmount).toLocaleString()}`);
+    }
+
+    // ギャングプールの計算 (基礎分配 ＋ 1万円未満の端数)
+    const poolFinalAmount = baseSplit + poolFraction;
+    
+    document.getElementById(`member-name-pool-final`).textContent = `¥${Math.floor(poolFinalAmount).toLocaleString()}`;
+    
+    const poolText = `【ギャングプール】\n ┗ 基礎分配: ¥${Math.floor(baseSplit).toLocaleString()}\n ┗ 1万円未満端数: ¥${Math.floor(poolFraction).toLocaleString()}\n ┗ ＝ 最終支給額: ¥${Math.floor(poolFinalAmount).toLocaleString()}`;
+
+    // 5. コピペ欄への出力生成
+    const crimeText = selectedCrimeName ? `・${selectedCrimeName} (基本罰金: ¥${baseFineAmount.toLocaleString()})` : "・なし";
+
+    const copyPasteArea = document.getElementById('copy-paste-area');
+    copyPasteArea.value = `====== 強盗・犯罪報酬分配リポート ======
+■ 確定犯罪内容：
+${crimeText}
+----------------------------------------
+■ 報酬内訳・山分けルール：
+・現金：¥${cash.toLocaleString()} (100%)
+・ダーティーマネー額面：¥${dirty.toLocaleString()} (換金率: ${dirtyRate}%)
+・総報酬額：¥${Math.floor(rawTotalReward).toLocaleString()}
+・GP集約端数：¥${Math.floor(poolFraction).toLocaleString()} (1万円未満)
+・頭割りベース（計${divisor}等分）：¥${Math.floor(baseSplit).toLocaleString()}
+----------------------------------------
+■ 各員最終分配額（ベース ＋ 罰金 ＋ 蘇生 ＋ その他）：
+${textOutputs.join('\n\n')}
+
+${poolText}
+========================================`;
+}
+</script>
+
+</body>
+</html>
