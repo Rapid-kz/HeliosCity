@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>FiveM 報酬分配計算ツール</title>
+    <title>FiveM 報酬分配計算ツール (100万端数版)</title>
     <style>
         body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #1e1e24; color: #e0e0e0; margin: 20px; line-height: 1.6; }
         h1, h2 { color: #fff; border-bottom: 2px solid #ff4757; padding-bottom: 10px; }
@@ -24,12 +24,13 @@
         .radio-group { display: flex; justify-content: center; gap: 10px; align-items: center; }
         .radio-group label { color: #fff; margin: 0; cursor: pointer; font-weight: normal; }
         .radio-group input[type="radio"] { width: auto; margin: 0; cursor: pointer; }
+        .gp-mode-group { display: flex; gap: 20px; background: #3a3a45; padding: 10px; border-radius: 4px; border: 1px solid #555; margin-bottom: 10px; }
+        .gp-mode-group label { color: #fff; cursor: pointer; font-weight: normal; margin: 0; display: flex; align-items: center; gap: 5px; }
+        .gp-mode-group input[type="radio"] { width: auto; margin: 0; }
         .disabled-cell { color: #777; font-style: italic; background-color: #1e1e24; }
     </style>
 </head>
 <body>
-
-<a href="https://rapid-kz.github.io/HeliosCity/" class="fixed-link-btn" style="background-color: #00d2d3; color: #000000; font-weight: bold; padding: 10px 20px; border-radius: 5px; text-decoration: none; display: inline-block; box-shadow: 0 0 10px rgba(0, 210, 211, 0.5);">◀ ツール一覧へ戻る</a>
 
 <div class="container">
     <h1>FiveM 報酬分配計算ツール</h1>
@@ -61,7 +62,7 @@
                 <input type="number" id="dirty-rate" value="100" oninput="calculateAll()">
             </div>
             <div>
-                <label>総報酬額</label>
+                <label>総報酬額（計算後合計）</label>
                 <div id="total-reward-display" class="total-box">¥0</div>
             </div>
         </div>
@@ -69,11 +70,25 @@
 
     <div class="section">
         <h2>3. 参加者設定</h2>
+        
         <div class="grid-2">
             <div>
                 <label>参加人数</label>
                 <select id="member-count" onchange="renderMemberTable()"></select>
             </div>
+            <div>
+                <label>ギャングプール運用パターン</label>
+                <div class="gp-mode-group">
+                    <label><input type="radio" name="gp-mode" value="normal" checked onchange="toggleGpInputMode()"> あり（等分）</label>
+                    <label><input type="radio" name="gp-mode" value="none" onchange="toggleGpInputMode()"> なし</label>
+                    <label><input type="radio" name="gp-mode" value="manual" onchange="toggleGpInputMode()"> 自由入力</label>
+                </div>
+            </div>
+        </div>
+
+        <div id="gp-manual-amount-wrapper" style="display: none; margin-bottom: 15px;">
+            <label style="color: #ff4757;">ギャングプール自由入力額 (¥)</label>
+            <input type="number" id="gp-manual-amount" value="0" oninput="calculateAll()" style="border: 1px solid #ff4757;">
         </div>
         
         <h3>メンバー別詳細入力</h3>
@@ -82,7 +97,7 @@
                 <tr>
                     <th style="width: 20%;">名前</th>
                     <th style="width: 20%;">罰金有無</th>
-                    <th style="width: 15%;">罰金</th>
+                    <th style="width: 15%;">追加罰金</th>
                     <th style="width: 15%;">追加蘇生代</th>
                     <th style="width: 15%;">その他（自由入力）</th>
                     <th style="width: 15%;">最終支給額</th>
@@ -103,7 +118,7 @@
 </div>
 
 <script>
-// --- 設定用データ ---
+// --- 設定用データ (ここで犯罪名と罰金をカスタマイズできます) ---
 const crimeList = {
 　　// 実装されていない犯罪はスラッシュでコメントアウト
 　　// ◆中型犯罪
@@ -159,6 +174,17 @@ function initMemberCountSelect() {
         opt.textContent = `${i} 人`;
         select.appendChild(opt);
     }
+}
+
+function toggleGpInputMode() {
+    const mode = document.querySelector('input[name="gp-mode"]:checked').value;
+    const inputWrapper = document.getElementById('gp-manual-amount-wrapper');
+    if (mode === 'manual') {
+        inputWrapper.style.display = 'block';
+    } else {
+        inputWrapper.style.display = 'none';
+    }
+    calculateAll();
 }
 
 function renderMemberTable() {
@@ -232,20 +258,43 @@ function calculateAll() {
     const dirtyRate = parseFloat(document.getElementById('dirty-rate').value) || 0;
     
     const calculatedDirty = dirty * (dirtyRate / 100);
-    const rawTotalReward = cash + calculatedDirty; // 純粋な総報酬額
-    
-    // 1万円未満の端数を計算
-    const poolFraction = rawTotalReward % 10000; 
-    // 端数を引いた金額
-    const roundedTotalReward = rawTotalReward - poolFraction;
+    const rawTotalReward = cash + calculatedDirty; 
+    document.getElementById('total-reward-display').textContent = `¥${Math.floor(rawTotalReward).toLocaleString()}`;
 
     const count = parseInt(document.getElementById('member-count').value);
-    const divisor = count + 1; 
-    
-    // 総報酬をベースとした純粋な頭割り金額
-    const baseSplit = roundedTotalReward / divisor;
+    const gpMode = document.querySelector('input[name="gp-mode"]:checked').value;
 
-    document.getElementById('total-reward-display').textContent = `¥${Math.floor(rawTotalReward).toLocaleString()}`;
+    let divisor = count; 
+    let baseSplit = 0;
+    let poolFinalAmount = 0;
+    let poolFraction = 0;
+    let gpExplanationText = "";
+
+    if (gpMode === 'normal') {
+        // 【パターン1: あり(等分)】★端数を100万円未満（% 1000000）に変更しました
+        divisor = count + 1; 
+        poolFraction = rawTotalReward % 1000000; // 100万円未満端数を計算
+        const roundedTotal = rawTotalReward - poolFraction; // 100万円単位に丸められた金額
+        baseSplit = roundedTotal / divisor;
+        poolFinalAmount = baseSplit + poolFraction;
+        gpExplanationText = `頭割り（${count}人 + GP1枠 ＝ 計${divisor}等分）+ 100万円未満端数`;
+    } 
+    else if (gpMode === 'none') {
+        // 【パターン2: なし】
+        divisor = count; 
+        baseSplit = rawTotalReward / divisor;
+        poolFinalAmount = 0;
+        gpExplanationText = `メンバーのみで均等頭割り（計${count}等分）`;
+    } 
+    else if (gpMode === 'manual') {
+        // 【パターン3: 自由入力】
+        const manualInputGp = parseFloat(document.getElementById('gp-manual-amount').value) || 0;
+        const rewardAfterGp = Math.max(0, rawTotalReward - manualInputGp); 
+        divisor = count; 
+        baseSplit = rewardAfterGp / divisor;
+        poolFinalAmount = manualInputGp;
+        gpExplanationText = `全体からGP指定額(¥${manualInputGp.toLocaleString()})を引いて、${count}人で等分`;
+    }
 
     let textOutputs = [];
 
@@ -264,7 +313,6 @@ function calculateAll() {
         const revive = parseFloat(document.getElementById(`${idPrefix}-revive`).value) || 0;
         const other = parseFloat(document.getElementById(`${idPrefix}-other`).value) || 0;
         
-        // 個人最終支給額 ＝ 基礎分配 ＋ 罰金 ＋ 蘇生代 ＋ その他
         const finalAmount = baseSplit + currentFine + revive + other;
 
         document.getElementById(`${idPrefix}-fine-val`).textContent = `¥${currentFine.toLocaleString()}`;
@@ -273,15 +321,19 @@ function calculateAll() {
         textOutputs.push(`【${name}】\n ┗ 基礎分配: ¥${Math.floor(baseSplit).toLocaleString()}\n ┗ 追加罰金: +¥${currentFine.toLocaleString()}\n ┗ 追加蘇生代: +¥${revive.toLocaleString()}\n ┗ その他追加: +¥${other.toLocaleString()}\n ┗ ＝ 最終支給額: ¥${Math.floor(finalAmount).toLocaleString()}`);
     }
 
-    // ギャングプールの計算 (基礎分配 ＋ 1万円未満の端数)
-    const poolFinalAmount = baseSplit + poolFraction;
-    
+    // ギャングプールの画面表示を更新
     document.getElementById(`member-name-pool-final`).textContent = `¥${Math.floor(poolFinalAmount).toLocaleString()}`;
     
-    const poolText = `【ギャングプール】\n ┗ 基礎分配: ¥${Math.floor(baseSplit).toLocaleString()}\n ┗ 1万円未満端数: ¥${Math.floor(poolFraction).toLocaleString()}\n ┗ ＝ 最終支給額: ¥${Math.floor(poolFinalAmount).toLocaleString()}`;
+    // コピペ用テキストの構築
+    let poolTextDetails = `┗ 基礎分配: ¥${Math.floor(baseSplit).toLocaleString()}\n ┗ 100万円未満端数: ¥${Math.floor(poolFraction).toLocaleString()}`;
+    if (gpMode === 'none') poolTextDetails = `┗ ギャングプール分配なし設定`;
+    if (gpMode === 'manual') poolTextDetails = `┗ 自由入力指定額: ¥${Math.floor(poolFinalAmount).toLocaleString()}`;
+    
+    const poolText = `【ギャングプール】\n ${poolTextDetails}\n ┗ ＝ 最終支給額: ¥${Math.floor(poolFinalAmount).toLocaleString()}`;
 
-    // 5. コピペ欄への出力生成
+    // 4. コピペ欄への出力生成
     const crimeText = selectedCrimeName ? `・${selectedCrimeName} (基本罰金: ¥${baseFineAmount.toLocaleString()})` : "・なし";
+    let modeLabelText = gpMode === 'normal' ? 'あり（等分）' : (gpMode === 'none' ? 'なし' : '自由入力');
 
     const copyPasteArea = document.getElementById('copy-paste-area');
     copyPasteArea.value = `====== 強盗・犯罪報酬分配リポート ======
@@ -292,8 +344,9 @@ ${crimeText}
 ・現金：¥${cash.toLocaleString()} (100%)
 ・ダーティーマネー額面：¥${dirty.toLocaleString()} (換金率: ${dirtyRate}%)
 ・総報酬額：¥${Math.floor(rawTotalReward).toLocaleString()}
-・GP集約端数：¥${Math.floor(poolFraction).toLocaleString()} (1万円未満)
-・頭割りベース（計${divisor}等分）：¥${Math.floor(baseSplit).toLocaleString()}
+・GP運用モード：${modeLabelText}
+・山分け計算ベース：${gpExplanationText}
+・頭割りベース（1人あたり）：¥${Math.floor(baseSplit).toLocaleString()}
 ----------------------------------------
 ■ 各員最終分配額（ベース ＋ 罰金 ＋ 蘇生 ＋ その他）：
 ${textOutputs.join('\n\n')}
