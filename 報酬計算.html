@@ -28,7 +28,7 @@
         .gp-mode-group label { color: #fff; cursor: pointer; font-weight: normal; margin: 0; display: flex; align-items: center; gap: 5px; }
         .gp-mode-group input[type="radio"] { width: auto; margin: 0; }
         .disabled-cell { color: #777; font-style: italic; background-color: #1e1e24; }
-        .error-message { background: #ff4757; color: white; padding: 10px; margin-top: 10px; border-radius: 4px; font-weight: bold; text-align: center; display: none; }
+        .error-message { background: #ff4757; color: white; padding: 15px; margin: 15px 0; border-radius: 4px; font-weight: bold; text-align: center; display: none; font-size: 1.1rem; }
     </style>
 </head>
 <body>
@@ -48,26 +48,25 @@
     </div>
 
     <div class="section">
-        <h2>2. 全体報酬額入力</h2>
+        <h2>2. 報酬額入力</h2>
         <div class="grid-2">
             <div>
                 <label>現金 (100%換算)</label>
                 <input type="number" id="cash" value="0" oninput="calculateAll()">
             </div>
             <div>
-                <label>ダーティーマネー（額面）</label>
+                <label>ダーティーマネー（取得金額）</label>
                 <input type="number" id="dirty" value="0" oninput="calculateAll()">
             </div>
         </div>
         <div class="grid-2">
             <div>
-                <label>ダーティーマネー換金率 (%)</label>
+                <label>ダーティーマネー換金率 (%)※洗浄する人の換金率を記入</label>
                 <input type="number" id="dirty-rate" value="100" oninput="calculateAll()">
             </div>
             <div>
-                <label>総報酬額（計算後合計）</label>
+                <label>合計報酬額</label>
                 <div id="total-reward-display" class="total-box">¥0</div>
-                <div id="calc-error-display" class="error-message"></div>
             </div>
         </div>
     </div>
@@ -81,10 +80,10 @@
                 <select id="member-count" onchange="renderMemberTable()"></select>
             </div>
             <div>
-                <label>ギャングプール運用パターン</label>
+                <label>ギャングプールパターン</label>
                 <div class="gp-mode-group">
-                    <label><input type="radio" name="gp-mode" value="normal" checked onchange="toggleGpInputMode()"> あり（等分）</label>
-                    <label><input type="radio" name="gp-mode" value="none" onchange="toggleGpInputMode()"> なし</label>
+                    <label><input type="radio" name="gp-mode" value="normal" onchange="toggleGpInputMode()"> あり（等分）</label>
+                    <label><input type="radio" name="gp-mode" value="none" checked onchange="toggleGpInputMode()"> なし</label>
                     <label><input type="radio" name="gp-mode" value="manual" onchange="toggleGpInputMode()"> 自由入力</label>
                 </div>
             </div>
@@ -104,7 +103,7 @@
                     <th style="width: 15%;">罰金</th>
                     <th style="width: 15%;">蘇生代</th>
                     <th style="width: 15%;">その他（自由入力）</th>
-                    <th style="width: 15%;">最終支給額</th>
+                    <th style="width: 15%;">支給額</th>
                 </tr>
             </thead>
             <tbody id="member-tbody">
@@ -113,6 +112,8 @@
         
         <button class="btn" onclick="calculateAll()">計算を実行してコピペ欄を更新</button>
     </div>
+
+    <div id="calc-error-display" class="error-message"></div>
 
     <div class="section">
         <h2>4. Discord用コピペ欄</h2>
@@ -140,7 +141,7 @@ const crimeList = {
     "パシフィック銀行強盗": 15000000,
 };
 
-const nameList = ["選択してください", "黒羽兎々", "天使りる", "黒雪クロノ", "草薙龍輝", "カビ", "山吹 怜", "ラピッド", "加羅元気", "なぶ", "プレイヤーJ", "プレイヤーK", "プレイヤーL", "プレイヤーM", "プレイヤーN", "プレイヤーO"];
+const nameList = ["選択してください", "黒羽兎々", "天使りる", "黒雪クロノ", "草薙龍輝", "カビ", "山吹 怜", "ラピッド", "加羅元気", "なぶ", "傭兵①", "傭兵②", "傭兵③"];
 
 window.onload = function() {
     initCrimeSelect();
@@ -196,10 +197,23 @@ function renderMemberTable() {
     calculateAll();
 }
 
+// 罰金ラジオボタン変更時に蘇生代を連動させる関数
+function handleFineChange(idPrefix) {
+    const fineRadioOn = document.getElementById(`${idPrefix}-fine-on`);
+    if (fineRadioOn && fineRadioOn.checked) {
+        const reviveSelect = document.getElementById(`${idPrefix}-revive`);
+        if (reviveSelect) {
+            reviveSelect.value = "1000000"; // 罰金有りの時に自動で100万にする
+        }
+    }
+    calculateAll();
+}
+
 function createRow(tbody, idPrefix, isPool, nameOptions, index) {
     const tr = document.createElement('tr');
     
     if (isPool) {
+        tr.id = "pool-row"; // 制御用にIDを付与
         tr.innerHTML = `
             <td><strong>ギャングプール</strong></td>
             <td class="disabled-cell">-</td>
@@ -216,9 +230,9 @@ function createRow(tbody, idPrefix, isPool, nameOptions, index) {
 
         const radioGroup = `
             <div class="radio-group">
-                <input type="radio" id="${idPrefix}-fine-on" name="fine-status-${index}" value="on" onchange="calculateAll()">
+                <input type="radio" id="${idPrefix}-fine-on" name="fine-status-${index}" value="on" onchange="handleFineChange('${idPrefix}')">
                 <label for="${idPrefix}-fine-on">有</label>
-                <input type="radio" id="${idPrefix}-fine-off" name="fine-status-${index}" value="off" checked onchange="calculateAll()">
+                <input type="radio" id="${idPrefix}-fine-off" name="fine-status-${index}" value="off" checked onchange="handleFineChange('${idPrefix}')">
                 <label for="${idPrefix}-fine-off">無</label>
             </div>
         `;
@@ -237,7 +251,7 @@ function createRow(tbody, idPrefix, isPool, nameOptions, index) {
 
 function calculateAll() {
     let baseFineAmount = 0;
-    let selectedCrimeName = "";
+    let selectedCrimeName = "未選択";
     const crimeSelect = document.getElementById('crime-select');
     if (crimeSelect && crimeSelect.value) {
         selectedCrimeName = crimeSelect.value;
@@ -255,9 +269,8 @@ function calculateAll() {
     const count = parseInt(document.getElementById('member-count').value);
     const gpMode = document.querySelector('input[name="gp-mode"]:checked').value;
 
-    // --- 【条件1】総報酬額からメンバー全員の追加罰金・追加蘇生代・その他を引く ---
     let totalDeductions = 0;
-    let memberDataList = []; // 後続の計算用に各メンバーの入力値を一時保持
+    let memberDataList = [];
 
     for (let i = 1; i <= count; i++) {
         const idPrefix = `member-name-${i}`;
@@ -269,8 +282,6 @@ function calculateAll() {
         const revive = parseFloat(document.getElementById(`${idPrefix}-revive`).value) || 0;
         const other = parseFloat(document.getElementById(`${idPrefix}-other`).value) || 0;
         
-        // 罰金と蘇生代を「引き」、その他を「足す」ための合計値を集計
-        // (全体から引いておくことで、あとで特定の個人がこの金額を被るように調整できます)
         totalDeductions += (- currentFine - revive + other);
 
         memberDataList.push({
@@ -281,15 +292,12 @@ function calculateAll() {
         });
     }
 
-    // 各自の補正を行ったあとの「調整後総報酬」
     const adjustedTotalReward = Math.max(0, rawTotalReward + totalDeductions);
 
-    // --- 【条件2】ギャングプール運用パターンを参照して人数で等分（基礎分配） ---
     let divisor = count; 
     let baseSplit = 0;
     let poolFinalAmount = 0;
     let poolFraction = 0;
-    let gpExplanationText = "";
 
     if (gpMode === 'normal') {
         divisor = count + 1; 
@@ -297,13 +305,11 @@ function calculateAll() {
         const roundedTotal = adjustedTotalReward - poolFraction; 
         baseSplit = roundedTotal / divisor;
         poolFinalAmount = baseSplit + poolFraction;
-        gpExplanationText = `調整後報酬から頭割り（${count}人 + GP1枠 ＝ 計${divisor}等分）+ 100万円未満端数`;
     } 
     else if (gpMode === 'none') {
         divisor = count; 
         baseSplit = adjustedTotalReward / divisor;
         poolFinalAmount = 0;
-        gpExplanationText = `メンバーのみで調整後報酬を均等頭割り（計${count}等分）`;
     } 
     else if (gpMode === 'manual') {
         const manualInputGp = parseFloat(document.getElementById('gp-manual-amount').value) || 0;
@@ -311,11 +317,9 @@ function calculateAll() {
         divisor = count; 
         baseSplit = rewardAfterGp / divisor;
         poolFinalAmount = manualInputGp;
-        gpExplanationText = `調整後報酬からGP指定額(¥${manualInputGp.toLocaleString()})を引いて、${count}人で等分`;
     }
 
-    // --- 【条件3】基礎分配にそれぞれの追加罰金、追加蘇生代、その他を足す（最終支給額） ---
-    let textOutputs = [];
+    let summaryOutputs = [];
     let totalCalculated = Math.floor(poolFinalAmount); 
 
     for (let i = 0; i < count; i++) {
@@ -325,7 +329,6 @@ function calculateAll() {
         const nameSel = document.getElementById(member.idPrefix);
         if(nameSel && nameSel.value !== "選択してください") name = nameSel.value;
 
-        // 基礎分配に「追加罰金」「追加蘇生代」を足し、「その他」を引く（条件1と逆の補正）
         const finalAmount = baseSplit + member.currentFine + member.revive - member.other;
         const roundedFinalAmount = Math.floor(finalAmount);
         
@@ -334,19 +337,23 @@ function calculateAll() {
         document.getElementById(`${member.idPrefix}-fine-val`).textContent = `¥${member.currentFine.toLocaleString()}`;
         document.getElementById(`${member.idPrefix}-final`).textContent = `¥${roundedFinalAmount.toLocaleString()}`;
 
-        textOutputs.push(`【${name}】\n ┗ 基礎分配: ¥${Math.floor(baseSplit).toLocaleString()}\n ┗ 追加罰金（戻し）: +¥${member.currentFine.toLocaleString()}\n ┗ 追加蘇生代（戻し）: +¥${member.revive.toLocaleString()}\n ┗ その他（差し引き）: -¥${member.other.toLocaleString()}\n ┗ ＝ 最終支給額: ¥${roundedFinalAmount.toLocaleString()}`);
+        summaryOutputs.push(`・${name} ： **¥${roundedFinalAmount.toLocaleString()}**`);
     }
 
-    document.getElementById(`member-name-pool-final`).textContent = `¥${Math.floor(poolFinalAmount).toLocaleString()}`;
+    const poolFinalFloor = Math.floor(poolFinalAmount);
+    const poolFinalElement = document.getElementById(`member-name-pool-final`);
+    if(poolFinalElement) {
+        poolFinalElement.textContent = `¥${poolFinalFloor.toLocaleString()}`;
+    }
     
-    let poolTextDetails = `┗ 基礎分配: ¥${Math.floor(baseSplit).toLocaleString()}\n ┗ 100万円未満端数: ¥${Math.floor(poolFraction).toLocaleString()}`;
-    if (gpMode === 'none') poolTextDetails = `┗ ギャングプール分配なし設定`;
-    if (gpMode === 'manual') poolTextDetails = `┗ 自由入力指定額: ¥${Math.floor(poolFinalAmount).toLocaleString()}`;
-    
-    const poolText = `【ギャングプール】\n ${poolTextDetails}\n ┗ ＝ 最終支給額: ¥${Math.floor(poolFinalAmount).toLocaleString()}`;
-
-    const crimeText = selectedCrimeName ? `・${selectedCrimeName} (基本罰金: ¥${baseFineAmount.toLocaleString()})` : "・なし";
-    let modeLabelText = gpMode === 'normal' ? 'あり（等分）' : (gpMode === 'none' ? 'なし' : '自由入力');
+    const poolRow = document.getElementById('pool-row');
+    if (poolRow) {
+        if (poolFinalFloor === 0) {
+            poolRow.style.display = 'none';
+        } else {
+            poolRow.style.display = 'table-row';
+        }
+    }
 
     // 整合性チェック
     const targetTotal = Math.floor(rawTotalReward);
@@ -365,23 +372,24 @@ function calculateAll() {
         errorDisplay.style.display = 'none';
     }
 
-    const copyPasteArea = document.getElementById('copy-paste-area');
-    copyPasteArea.value = `${errorPrefixText}====== 強盗・犯罪報酬分配リポート ======
-■ 確定犯罪内容：
-${crimeText}
-----------------------------------------
-■ 報酬内訳・山分けルール：
-・現金：¥${cash.toLocaleString()} (100%)
-・ダーティーマネー額面：¥${dirty.toLocaleString()} (換金率: ${dirtyRate}%)
-・総報酬額：¥${targetTotal.toLocaleString()}
-・GP運用モード：${modeLabelText}
-・山分け計算ベース：${gpExplanationText}
-・頭割りベース（調整後1人あたり）：¥${Math.floor(baseSplit).toLocaleString()}
-----------------------------------------
-■ 各員最終分配額：
-${textOutputs.join('\n\n')}
+    // 日付と時間の取得
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mi = String(now.getMinutes()).padStart(2, '0');
+    const dateTimeStr = `${yyyy}/${mm}/${dd} ${hh}:${mi}`;
 
-${poolText}
+    // コピペ用テキストの更新
+    const copyPasteArea = document.getElementById('copy-paste-area');
+    copyPasteArea.value = `${errorPrefixText}====== 💰 報酬分配リポート 💰 ======
+■ 作成日時　： ${dateTimeStr}
+■ 犯罪名　　： ${selectedCrimeName}
+■ 合計報酬額： ¥${targetTotal.toLocaleString()}
+
+■ 支給額一覧
+${summaryOutputs.join('\n')}
 ========================================`;
 }
 </script>
