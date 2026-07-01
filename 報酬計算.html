@@ -122,26 +122,26 @@
 <script>
 // --- 設定用データ (ここで犯罪名と罰金をカスタマイズできます) ---
 const crimeList = {
-　　// 実装されていない犯罪はスラッシュでコメントアウト
-　　// ◆中型犯罪
+    // 実装されていない犯罪はスラッシュでコメントアウト
+    // ◆中型犯罪
     "軍事基地襲撃": 6000000,
     "トレイン強盗": 6000000,
     //"パレト銀行強盗": 6000000,
     "ヴァンジェリコ強盗(支店)": 6000000,
     //"ナイトクラブ強盗": 6000000,
     "ボブキャット強盗": 6000000,
-　　// ◆準大型犯罪
+    // ◆準大型犯罪
     "ヒューメインラボ強盗": 8000000,
     "客船襲撃強盗": 8000000,
     "飛行場襲撃強盗": 8000000,
     "オイルリグ強盗": 8000000,
     "大型金庫強盗": 8000000,
     "ヴァンジェリコ強盗(本店)": 8000000,
-　　// ◆大型犯罪
+    // ◆大型犯罪
     "アーティファクト強盗": 10000000,
     "ユニオン強盗": 10000000,
     "アミュネーション強盗": 10000000,
-　　// ◆超大型犯罪
+    // ◆超大型犯罪
     "パシフィック銀行強盗": 15000000,
     //"メリーウェザー強盗": 15000000,
     //"メイズバンク強盗": 15000000,
@@ -151,7 +151,7 @@ const crimeList = {
     // 必要に応じて自由に増やせます
 };
 
-const nameList = ["選択してください", "プレイヤーA", "プレイヤーB", "プレイヤーC", "プレイヤーD", "プレイヤーE", "プレイヤーF", "プレイヤーG", "プレイヤーH", "プレイヤーI", "プレイヤーJ", "プレイヤーK", "プレイヤーL", "プレイヤーM", "プレイヤーN", "プレイヤーO"];
+const nameList = ["選択してください", "黒羽兎々", "天使りる", "黒雪クロノ", "草薙龍輝", "カビ", "山吹 怜", "ラピッド", "加羅元気", "なぶ", "プレイヤーJ", "プレイヤーK", "プレイヤーL", "プレイヤーM", "プレイヤーN", "プレイヤーO"];
 
 window.onload = function() {
     initCrimeSelect();
@@ -225,11 +225,12 @@ function createRow(tbody, idPrefix, isPool, nameOptions, index) {
             syoseiOptions += `<option value="${m * 1000000}">¥${m},000,000</option>`;
         }
 
+        // デフォルトを「無（fine-off）」にcheckedを変更
         const radioGroup = `
             <div class="radio-group">
-                <input type="radio" id="${idPrefix}-fine-on" name="fine-status-${index}" value="on" checked onchange="calculateAll()">
+                <input type="radio" id="${idPrefix}-fine-on" name="fine-status-${index}" value="on" onchange="calculateAll()">
                 <label for="${idPrefix}-fine-on">有</label>
-                <input type="radio" id="${idPrefix}-fine-off" name="fine-status-${index}" value="off" onchange="calculateAll()">
+                <input type="radio" id="${idPrefix}-fine-off" name="fine-status-${index}" value="off" checked onchange="calculateAll()">
                 <label for="${idPrefix}-fine-off">無</label>
             </div>
         `;
@@ -273,23 +274,20 @@ function calculateAll() {
     let gpExplanationText = "";
 
     if (gpMode === 'normal') {
-        // 【パターン1: あり(等分)】★端数を100万円未満（% 1000000）に変更しました
         divisor = count + 1; 
-        poolFraction = rawTotalReward % 1000000; // 100万円未満端数を計算
-        const roundedTotal = rawTotalReward - poolFraction; // 100万円単位に丸められた金額
+        poolFraction = rawTotalReward % 1000000; 
+        const roundedTotal = rawTotalReward - poolFraction; 
         baseSplit = roundedTotal / divisor;
         poolFinalAmount = baseSplit + poolFraction;
         gpExplanationText = `頭割り（${count}人 + GP1枠 ＝ 計${divisor}等分）+ 100万円未満端数`;
     } 
     else if (gpMode === 'none') {
-        // 【パターン2: なし】
         divisor = count; 
         baseSplit = rawTotalReward / divisor;
         poolFinalAmount = 0;
         gpExplanationText = `メンバーのみで均等頭割り（計${count}等分）`;
     } 
     else if (gpMode === 'manual') {
-        // 【パターン3: 自由入力】
         const manualInputGp = parseFloat(document.getElementById('gp-manual-amount').value) || 0;
         const rewardAfterGp = Math.max(0, rawTotalReward - manualInputGp); 
         divisor = count; 
@@ -300,7 +298,6 @@ function calculateAll() {
 
     let textOutputs = [];
 
-    // メンバー個人の計算
     for (let i = 1; i <= count; i++) {
         const idPrefix = `member-name-${i}`;
         
@@ -309,7 +306,7 @@ function calculateAll() {
         if(nameSel && nameSel.value !== "選択してください") name = nameSel.value;
 
         const fineRadioOn = document.getElementById(`${idPrefix}-fine-on`);
-        const hasFine = fineRadioOn ? fineRadioOn.checked : true;
+        const hasFine = fineRadioOn ? fineRadioOn.checked : false; // デフォルトが無なので論理値を調整
         const currentFine = hasFine ? baseFineAmount : 0;
 
         const revive = parseFloat(document.getElementById(`${idPrefix}-revive`).value) || 0;
@@ -323,17 +320,14 @@ function calculateAll() {
         textOutputs.push(`【${name}】\n ┗ 基礎分配: ¥${Math.floor(baseSplit).toLocaleString()}\n ┗ 追加罰金: +¥${currentFine.toLocaleString()}\n ┗ 追加蘇生代: +¥${revive.toLocaleString()}\n ┗ その他追加: +¥${other.toLocaleString()}\n ┗ ＝ 最終支給額: ¥${Math.floor(finalAmount).toLocaleString()}`);
     }
 
-    // ギャングプールの画面表示を更新
     document.getElementById(`member-name-pool-final`).textContent = `¥${Math.floor(poolFinalAmount).toLocaleString()}`;
     
-    // コピペ用テキストの構築
     let poolTextDetails = `┗ 基礎分配: ¥${Math.floor(baseSplit).toLocaleString()}\n ┗ 100万円未満端数: ¥${Math.floor(poolFraction).toLocaleString()}`;
     if (gpMode === 'none') poolTextDetails = `┗ ギャングプール分配なし設定`;
     if (gpMode === 'manual') poolTextDetails = `┗ 自由入力指定額: ¥${Math.floor(poolFinalAmount).toLocaleString()}`;
     
     const poolText = `【ギャングプール】\n ${poolTextDetails}\n ┗ ＝ 最終支給額: ¥${Math.floor(poolFinalAmount).toLocaleString()}`;
 
-    // 4. コピペ欄への出力生成
     const crimeText = selectedCrimeName ? `・${selectedCrimeName} (基本罰金: ¥${baseFineAmount.toLocaleString()})` : "・なし";
     let modeLabelText = gpMode === 'normal' ? 'あり（等分）' : (gpMode === 'none' ? 'なし' : '自由入力');
 
